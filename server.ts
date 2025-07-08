@@ -65,7 +65,7 @@ fastify.post('/mission', async (request, reply) => {
         // Fallback to SMS if WhatsApp fails
         await client.messages.create({
           from: twilioPhoneNumber,
-          to: `whatsapp:${process.env.JEROME_PHONE_NUMBER}`,
+          to: `${process.env.JEROME_PHONE_NUMBER}`,
           body: "coucou Jerome, c'est un test de mission"
         })
         return { phoneNumber, status: 'SMS sent' }
