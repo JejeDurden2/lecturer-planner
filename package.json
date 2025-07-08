@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "fastify": "^5.4.0",
+    "twilio": "^5.7.2"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^24.0.10"
+  }
+}
