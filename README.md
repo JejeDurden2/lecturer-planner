@@ -12,7 +12,9 @@ A Fastify API for sending WhatsApp and SMS messages via Twilio.
 ## API Endpoints
 
 - `GET /` - Health check and API info
+- `GET /health` - Simple health check
 - `POST /mission` - Send messages to multiple numbers
+- `POST /sms-webhook` - Handle incoming SMS responses (Twilio webhook)
 
 ### POST /mission
 
@@ -84,6 +86,45 @@ Set these environment variables in your Heroku app:
    curl https://your-app-name.herokuapp.com/
    ```
 
+## Setting Up SMS Response Handling
+
+To handle SMS responses with your Twilio trial account:
+
+### 1. Configure Twilio Webhook
+
+1. Go to your [Twilio Console](https://console.twilio.com/)
+2. Navigate to **Phone Numbers** > **Manage** > **Active numbers**
+3. Click on your Twilio phone number
+4. In the **Messaging** section, set the webhook URL to:
+   ```
+   https://your-app-name.herokuapp.com/sms-webhook
+   ```
+5. Set the HTTP method to **POST**
+6. Save the configuration
+
+### 2. Trial Account Limitations
+
+⚠️ **Important**: With a Twilio trial account:
+- You can only send/receive SMS to/from **verified phone numbers**
+- All messages will have a "Sent from your Twilio trial account" prefix
+- Add phone numbers in **Verified Caller IDs** section
+
+### 3. How SMS Responses Work
+
+When someone replies to your SMS:
+- The webhook receives the response automatically
+- Responses with "oui"/"yes" = ✅ Acceptance 
+- Responses with "non"/"no" = ❌ Decline
+- Other responses = ❓ Request clarification
+- An automatic reply is sent based on the response
+
+### 4. Testing SMS Responses
+
+1. Send a mission SMS to a verified number
+2. Reply with "oui" or "non" from that number
+3. Check your Heroku logs: `heroku logs --tail`
+4. You should see the response processed and auto-reply sent
+
 ## Local Development
 
 1. **Install dependencies**:
@@ -107,6 +148,30 @@ Set these environment variables in your Heroku app:
 4. **Test locally**:
    ```bash
    curl http://localhost:3000/
+   ```
+
+### Testing Webhooks Locally (Optional)
+
+To test SMS responses during local development:
+
+1. **Install ngrok** (to expose your local server):
+   ```bash
+   brew install ngrok
+   ```
+
+2. **Start your local server**:
+   ```bash
+   npm run dev
+   ```
+
+3. **In another terminal, expose your local server**:
+   ```bash
+   ngrok http 3000
+   ```
+
+4. **Configure Twilio webhook** with the ngrok URL:
+   ```
+   https://your-ngrok-id.ngrok.io/sms-webhook
    ```
 
 ## Testing the Mission Endpoint

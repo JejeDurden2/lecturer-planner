@@ -20,7 +20,20 @@ const fastify = Fastify({
 })
 
 fastify.get('/', async (request, reply) => {
-  return { hello: 'world' }
+  return { 
+    hello: 'world',
+    message: 'Lecturer Planner API is running!',
+    endpoints: {
+      'GET /': 'This endpoint',
+      'POST /mission': 'Send WhatsApp/SMS to multiple numbers',
+      'POST /sms-webhook': 'Handle incoming SMS responses'
+    }
+  }
+})
+
+// Health check endpoint
+fastify.get('/health', async (request, reply) => {
+  return { status: 'healthy', timestamp: new Date().toISOString() }
 })
 
 // POST route for /mission
@@ -53,7 +66,7 @@ fastify.post('/mission', async (request, reply) => {
     const body = `Bonjour ${intervenant.firstName},\n\n` +
                 `Vous avez une nouvelle mission :\n` +
                 `Titre : ${mission.title}\n` +
-                `Durée : ${mission.duration}\n\n` +
+                `Durée : ${mission.duration}\n` +
                 `Date de début : ${mission.startDate}\n` +
                 `Merci de confirmer votre disponibilité en répondant par "oui" ou "non".\n\n`
 
@@ -83,6 +96,57 @@ fastify.post('/mission', async (request, reply) => {
       }
     }
   }
+})
+
+// SMS Webhook endpoint to handle incoming SMS responses
+fastify.post('/sms-webhook', async (request, reply) => {
+  const body = request.body as any
+  
+  // Extract information from the webhook
+  const from = body.From // Phone number that sent the SMS
+  const messageBody = body.Body // Content of the SMS
+  const messageSid = body.MessageSid // Unique message ID
+  const timestamp = new Date().toISOString()
+
+  console.log('📱 Incoming SMS:', {
+    from,
+    message: messageBody,
+    sid: messageSid,
+    timestamp
+  })
+
+  // Process the response (you can customize this logic)
+  const response = messageBody.toLowerCase().trim()
+  let replyMessage = ''
+
+  if (response.includes('oui') || response.includes('yes')) {
+    replyMessage = 'Merci ! Votre acceptation a été enregistrée. ✅'
+    console.log(`✅ ${from} accepted the mission`)
+  } else if (response.includes('non') || response.includes('no')) {
+    replyMessage = 'Merci pour votre réponse. Nous prendrons note de votre indisponibilité. ❌'
+    console.log(`❌ ${from} declined the mission`)
+  } else {
+    replyMessage = 'Merci pour votre message. Veuillez répondre par "oui" ou "non" pour confirmer votre disponibilité.'
+    console.log(`❓ ${from} sent unclear response: ${messageBody}`)
+  }
+
+  // Send automatic reply (optional)
+  if (client && replyMessage) {
+    try {
+      await client.messages.create({
+        from: twilioPhoneNumber,
+        to: from,
+        body: replyMessage
+      })
+      console.log(`📤 Auto-reply sent to ${from}`)
+    } catch (error: any) {
+      console.error(`❌ Failed to send auto-reply to ${from}:`, error.message)
+    }
+  }
+
+  // Return TwiML response (required by Twilio)
+  reply.type('text/xml')
+  return '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
 })
 
 const start = async () => {
