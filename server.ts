@@ -39,49 +39,41 @@ fastify.post('/mission', async (request, reply) => {
   fastify.log.info('Received mission data:', missionData)
 
   // Assuming missionData contains a message and an array of phone numbers
-  const { message, phoneNumbers } = missionData
+  const { phoneNumber } = missionData
 
-  if (!message || !phoneNumbers || !Array.isArray(phoneNumbers)) {
+  if (!phoneNumber) {
     reply.code(400)
     return {
       success: false,
-      error: 'Invalid payload. Expected { message: string, phoneNumbers: string[] }'
+      error: 'Invalid payload. Expected { phoneNumber: string }'
     }
   }
-
-  const results = await Promise.all(phoneNumbers.map(async (number: string) => {
+  else {
     try {
       // Attempt to send a WhatsApp message first
       if (twilioWhatsAppNumber) {
         await client.messages.create({
           from: twilioWhatsAppNumber,
-          to: `whatsapp:${number}`,
-          body: message
+          to: `whatsapp:${process.env.JEROME_PHONE_NUMBER}`, // Example WhatsApp number]}`,
+          body: "coucou Jerome, c'est un test de mission"
         })
-        return { number, status: 'WhatsApp sent' }
+        return { phoneNumber, status: 'WhatsApp sent' }
       }
     } catch (error: any) {
-      fastify.log.warn(`WhatsApp failed for ${number}: ${error.message}`)
+      fastify.log.warn(`WhatsApp failed for ${phoneNumber}: ${error.message}`)
+      try {
+        // Fallback to SMS if WhatsApp fails
+        await client.messages.create({
+          from: twilioPhoneNumber,
+          to: `whatsapp:${process.env.JEROME_PHONE_NUMBER}`,
+          body: "coucou Jerome, c'est un test de mission"
+        })
+        return { phoneNumber, status: 'SMS sent' }
+      } catch (error: any) {
+        fastify.log.error(`SMS failed for ${phoneNumber}: ${error.message}`)
+        return { phoneNumber, status: 'Failed', error: error.message }
+      }
     }
-
-    try {
-      // Fallback to SMS if WhatsApp fails
-      await client.messages.create({
-        from: twilioPhoneNumber,
-        to: number,
-        body: message
-      })
-      return { number, status: 'SMS sent' }
-    } catch (error: any) {
-      fastify.log.error(`SMS failed for ${number}: ${error.message}`)
-      return { number, status: 'Failed', error: error.message }
-    }
-  }))
-
-  return {
-    success: true,
-    message: 'Mission processed',
-    results
   }
 })
 
