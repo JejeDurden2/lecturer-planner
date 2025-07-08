@@ -7,14 +7,13 @@ const authToken = process.env.TWILIO_AUTH_TOKEN
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
 const twilioWhatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER // Format: whatsapp:+1234567890
 
-if (!accountSid || !authToken || !twilioPhoneNumber) {
-  console.error('Missing required Twilio environment variables:')
-  console.error('TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER')
-  console.error('TWILIO_WHATSAPP_NUMBER (optional, for WhatsApp)')
-  process.exit(1)
+let client: any
+if (accountSid && authToken) {
+  client = twilio(accountSid, authToken)
+  console.log('✅ Twilio client initialized')
+} else {
+  console.log('⚠️  Twilio credentials not configured - SMS/WhatsApp features will be disabled')
 }
-
-const client = twilio(accountSid, authToken)
 
 const fastify = Fastify({
   logger: true
@@ -26,13 +25,29 @@ fastify.get('/', async (request, reply) => {
 
 // POST route for /mission
 fastify.post('/mission', async (request, reply) => {
-  const missionData = request.body
+  if (!client) {
+    reply.code(500)
+    return {
+      success: false,
+      error: 'Twilio credentials not configured'
+    }
+  }
+
+  const missionData = request.body as any
 
   // Log the received mission data
   fastify.log.info('Received mission data:', missionData)
 
   // Assuming missionData contains a message and an array of phone numbers
   const { message, phoneNumbers } = missionData
+
+  if (!message || !phoneNumbers || !Array.isArray(phoneNumbers)) {
+    reply.code(400)
+    return {
+      success: false,
+      error: 'Invalid payload. Expected { message: string, phoneNumbers: string[] }'
+    }
+  }
 
   const results = await Promise.all(phoneNumbers.map(async (number: string) => {
     try {
@@ -45,21 +60,23 @@ fastify.post('/mission', async (request, reply) => {
         })
         return { number, status: 'WhatsApp sent' }
       }
-    } catch (error) {
+    } catch (error: any) {
       fastify.log.warn(`WhatsApp failed for ${number}: ${error.message}`)
-      try {
-        // Fallback to SMS if WhatsApp fails
-        await client.messages.create({
-          from: twilioPhoneNumber,
-          to: number,
-          body: message
-        })
-        return { number, status: 'SMS sent' }
-      } catch (error) {
-        fastify.log.error(`SMS failed for ${number}: ${error.message}`)
-        return { number, status: 'Failed', error: error.message }
-      }
-    }}))
+    }
+
+    try {
+      // Fallback to SMS if WhatsApp fails
+      await client.messages.create({
+        from: twilioPhoneNumber,
+        to: number,
+        body: message
+      })
+      return { number, status: 'SMS sent' }
+    } catch (error: any) {
+      fastify.log.error(`SMS failed for ${number}: ${error.message}`)
+      return { number, status: 'Failed', error: error.message }
+    }
+  }))
 
   return {
     success: true,
@@ -70,7 +87,9 @@ fastify.post('/mission', async (request, reply) => {
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000, host: '0.0.0.0' })
+    const port = Number(process.env.PORT) || 3000
+    await fastify.listen({ port, host: '0.0.0.0' })
+    console.log(`🚀 Server running on port ${port}`)
   } catch (err) {
     fastify.log.error(err)
     process.exit(1)
