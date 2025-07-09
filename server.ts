@@ -68,14 +68,15 @@ fastify.post('/mission', async (request, reply) => {
                 `Titre : ${mission.title}\n` +
                 `Durée : ${mission.duration}\n` +
                 `Date de début : ${mission.startDate}\n` +
-                `Merci de confirmer votre disponibilité en répondant par "oui" ou "non".\n\n`
+                `Merci de confirmer votre disponibilité sur ce lien:\n` +
+                `${mission.validationUrl}\n`
 
     try {
       // Attempt to send a WhatsApp message first
       if (twilioWhatsAppNumber) {
         await client.messages.create({
           from: twilioWhatsAppNumber,
-          to: `whatsapp:${process.env.JEROME_PHONE_NUMBER}`,
+          to: `whatsapp:${process.env.STEVIE_PHONE_NUMBER}`,
           body
         })
         return { intervenant, status: 'WhatsApp sent' }
@@ -86,7 +87,7 @@ fastify.post('/mission', async (request, reply) => {
         // Fallback to SMS if WhatsApp fails
         await client.messages.create({
           from: twilioPhoneNumber,
-          to: `${process.env.JEROME_PHONE_NUMBER}`,
+          to: `${process.env.STEVIE_PHONE_NUMBER}`,
           body
         })
         return { intervenant, status: 'SMS sent' }
