@@ -76,7 +76,7 @@ fastify.post('/mission', async (request, reply) => {
       if (twilioWhatsAppNumber) {
         await client.messages.create({
           from: twilioWhatsAppNumber,
-          to: `whatsapp:${process.env.STEVEIE_PHONE_NUMBER}`,
+          to: `whatsapp:${process.env.STEVIE_PHONE_NUMBER}`,
           body
         })
         return { intervenant, status: 'WhatsApp sent' }
@@ -87,7 +87,7 @@ fastify.post('/mission', async (request, reply) => {
         // Fallback to SMS if WhatsApp fails
         await client.messages.create({
           from: twilioPhoneNumber,
-          to: `${process.env.STEVEIE_PHONE_NUMBER}`,
+          to: `${process.env.STEVIE_PHONE_NUMBER}`,
           body
         })
         return { intervenant, status: 'SMS sent' }
